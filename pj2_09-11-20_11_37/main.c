@@ -168,8 +168,6 @@ void *applyCommands() {
 
         int bstNum;
         bstNum = hash(name, numberBuckets);
-        printf("%s\n", command);
-        printf("%d\n", endFlag);
 
         int iNumber;
         switch (token) {
@@ -233,13 +231,14 @@ void runThreads(FILE *timeFp) {
                 exit(EXIT_FAILURE);
             }
         }
-    if(pthread_join(loader, NULL)) {
-            perror("Can't join thread");
-    }
+
     for(int i = 0; i < numberThreads; i++) {
         if(pthread_join(workers[i], NULL)) {
             perror("Can't join thread");
         }
+    }
+    if(pthread_join(loader, NULL)) {
+            perror("Can't join thread");
     }
 #else
     applyCommands();
