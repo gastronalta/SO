@@ -213,17 +213,16 @@ void runThreads(FILE *timeFp) {
     TIMER_T startTime, stopTime;
 #if defined (RWLOCK) || defined (MUTEX)
     pthread_t* workers = (pthread_t*) malloc(numberThreads * sizeof(pthread_t));
-    pthread_t loader;
 #endif
+    pthread_t loader;
 
     TIMER_READ(startTime);
-
-#if defined (RWLOCK) || defined (MUTEX)
 
     if (pthread_create(&loader, NULL, processInput, NULL)){
     perror("Can't create thread");
                 exit(EXIT_FAILURE);
         }
+#if defined (RWLOCK) || defined (MUTEX)
     for(int i = 0; i < numberThreads; i++){
             int err = pthread_create(&workers[i], NULL, applyCommands, NULL);
             if (err != 0){
@@ -231,23 +230,27 @@ void runThreads(FILE *timeFp) {
                 exit(EXIT_FAILURE);
             }
         }
+#else
+    applyCommands();
+#endif
 
+    if(pthread_join(loader, NULL)) {
+        perror("Can't join thread");
+    }
+#if defined (RWLOCK) || defined (MUTEX)
     for(int i = 0; i < numberThreads; i++) {
         if(pthread_join(workers[i], NULL)) {
             perror("Can't join thread");
         }
     }
-    if(pthread_join(loader, NULL)) {
-            perror("Can't join thread");
-    }
-#else
-    applyCommands();
 #endif
+
     TIMER_READ(stopTime);
     fprintf(timeFp, "TecnicoFS completed in %.4f seconds.\n", TIMER_DIFF_SECONDS(startTime, stopTime));
 #if defined (RWLOCK) || defined (MUTEX)
     free(workers);
 #endif
+
 }
 
 void init() {
