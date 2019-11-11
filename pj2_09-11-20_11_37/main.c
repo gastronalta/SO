@@ -83,7 +83,7 @@ char *removeCommand() {
     else
         sem_post(&sem_cons);
 
-    sem_post(&sem_prod);
+
 
     return command;
 }
@@ -165,6 +165,7 @@ void *applyCommands() {
         char name[MAX_INPUT_SIZE];
         char rename[MAX_INPUT_SIZE];
         sscanf(command, "%c %s %s", &token, name, rename);
+        printf("%s\n",command);
 
         int bstNum;
         bstNum = hash(name, numberBuckets);
@@ -174,10 +175,13 @@ void *applyCommands() {
             case 'c':
                 iNumber = obtainNewInumber(fs);
                 mutex_unlock(&commandsLock);
+                sem_post(&sem_prod);
                 create(fs, name, iNumber, bstNum);
+                printf("created %s  iNum=%d\n",name,iNumber);
                 break;
             case 'l':
                 mutex_unlock(&commandsLock);
+                sem_post(&sem_prod);
                 int searchResult = lookup(fs, name, bstNum);
                 if (!searchResult)
                     printf("%s not found\n", name);
@@ -186,10 +190,12 @@ void *applyCommands() {
                 break;
             case 'd':
                 mutex_unlock(&commandsLock);
+                sem_post(&sem_prod);
                 delete(fs, name, bstNum);
                 break;
             case 'r':
                 mutex_unlock(&commandsLock);
+                sem_post(&sem_prod);
                 int id = (lookup(fs, name, bstNum));
                 if (id && !lookup(fs, rename, hash(rename, numberBuckets))) {
                     delete(fs, name, bstNum);
@@ -198,10 +204,12 @@ void *applyCommands() {
                 break;
             case 'F':
                 mutex_unlock(&commandsLock);
+                sem_post(&sem_prod);
                 return NULL;
 
             default: { /* error */
                 mutex_unlock(&commandsLock);
+                sem_post(&sem_prod);
                 fprintf(stderr, "Error: commands to apply\n");
                 exit(EXIT_FAILURE);
             }
@@ -211,18 +219,15 @@ void *applyCommands() {
 
 void runThreads(FILE *timeFp) {
     TIMER_T startTime, stopTime;
-#if defined (RWLOCK) || defined (MUTEX)
     pthread_t* workers = (pthread_t*) malloc(numberThreads * sizeof(pthread_t));
-#endif
     pthread_t loader;
 
     TIMER_READ(startTime);
 
     if (pthread_create(&loader, NULL, processInput, NULL)){
-    perror("Can't create thread");
-                exit(EXIT_FAILURE);
-        }
-#if defined (RWLOCK) || defined (MUTEX)
+        perror("Can't create thread");
+        exit(EXIT_FAILURE);
+    }
     for(int i = 0; i < numberThreads; i++){
             int err = pthread_create(&workers[i], NULL, applyCommands, NULL);
             if (err != 0){
@@ -230,27 +235,18 @@ void runThreads(FILE *timeFp) {
                 exit(EXIT_FAILURE);
             }
         }
-#else
-    applyCommands();
-#endif
-
     if(pthread_join(loader, NULL)) {
         perror("Can't join thread");
     }
-#if defined (RWLOCK) || defined (MUTEX)
     for(int i = 0; i < numberThreads; i++) {
         if(pthread_join(workers[i], NULL)) {
             perror("Can't join thread");
         }
     }
-#endif
 
     TIMER_READ(stopTime);
     fprintf(timeFp, "TecnicoFS completed in %.4f seconds.\n", TIMER_DIFF_SECONDS(startTime, stopTime));
-#if defined (RWLOCK) || defined (MUTEX)
     free(workers);
-#endif
-
 }
 
 void init() {
@@ -260,6 +256,7 @@ void init() {
 }
 
 void destroy() {
+    mutex_destroy(&commandsLock);
     destroy_sem(&sem_prod);
     destroy_sem(&sem_cons);
 }

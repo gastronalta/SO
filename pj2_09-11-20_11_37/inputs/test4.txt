@@ -11,6 +11,7 @@ d vulturish
 l undistributed
 d snuffers
 c amhar
+l amhar
 l preclude
 d amhar
 l martyrology
